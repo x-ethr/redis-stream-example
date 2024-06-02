@@ -155,7 +155,11 @@ func Poll(ctx context.Context, client *redis.Client) {
 			panic(e)
 		}
 
+		slog.Log(ctx, levels.Trace, "Message Data", slog.Any("message", message))
+
 		time.Sleep(time.Second * 5)
+
+		slog.Log(ctx, levels.Trace, "Claiming Message (XAck)", slog.Any("id", message.ID))
 
 		err = client.XAck(ctx, stream, group, message.ID).Err()
 		if err != nil {
@@ -163,7 +167,7 @@ func Poll(ctx context.Context, client *redis.Client) {
 			panic(e)
 		}
 
-		slog.Log(ctx, levels.Trace, "Stream Data", slog.Any("message", message))
+		slog.Log(ctx, levels.Trace, "Deleting Message (XDel)", slog.Any("id", message.ID))
 
 		err = client.XDel(ctx, stream, message.ID).Err()
 		if err != nil {
