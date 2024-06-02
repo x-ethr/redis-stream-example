@@ -46,20 +46,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	switch level {
-	case "TRACE":
-		l = levels.Trace
-	case "DEBUG":
-		l = slog.LevelDebug
-	case "INFO":
-		l = slog.LevelInfo
-	case "WARN":
-		l = slog.LevelWarn
-	case "ERROR":
-		l = slog.LevelError
-	default:
-		panic("unexpected runtime evaluation of logging level has occurred")
-	}
+	l = levels.String(level)
 
 	logger()
 }
@@ -68,17 +55,17 @@ func logger() {
 	slog.SetLogLoggerLevel(l)
 
 	options := &slog.HandlerOptions{
+		Level: l,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == (slog.LevelKey) && a.Value.String() == "DEBUG-4" {
-				a.Value = slog.StringValue("TRACE")
-			} else if a.Key == slog.TimeKey {
+			a = levels.Attributes(groups, a)
+
+			if a.Key == slog.TimeKey {
 				value := a.Value.Time().Format("Jan 02 15:04:05.000")
 				a.Value = slog.StringValue(value)
 			}
 
 			return a
 		},
-		Level: l,
 	}
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, options).WithAttrs([]slog.Attr{slog.String("stream", stream), slog.String("group", group), slog.String("consumer", consumer)})))
@@ -176,15 +163,13 @@ func Poll(ctx context.Context, client *redis.Client) {
 			panic(e)
 		}
 
-		fmt.Println("got data from stream -", message.Values)
+		slog.Log(ctx, levels.Trace, "Stream Data", slog.Any("message", message))
 
 		err = client.XDel(ctx, stream, message.ID).Err()
 		if err != nil {
 			slog.ErrorContext(ctx, "Fatal Error has Occurred Attempting to Delete Message", slog.String("id", message.ID), slog.String("error", e.Error()))
 			panic(e)
 		}
-
-		// fmt.Println("acknowledged message", message.ID)
 	}
 }
 
